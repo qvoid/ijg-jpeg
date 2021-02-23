@@ -1,4 +1,4 @@
-使用 IJG JPEG 库
+# 使用 IJG JPEG 库
 
 版权所有（C）1994-2019，Guido Vollbeding的Thomas G.Lane。
 该文件是Independent JPEG Group软件的一部分。
@@ -15,8 +15,7 @@
 我们在版本5重写中牺牲了向后兼容性，但是我们认为这些改进证明了这一点。
 
 
-[目录]
------------------
+## [目录]
 
 - 概览
   - 库提供的功能
@@ -49,11 +48,9 @@
 在尝试对该库进行编程之前，您应该至少阅读概述和基本用法部分。 如果需要，请阅读有关高级功能的部分。
 
 
-概览
-========
+## 概览
 
-库提供的功能
-----------
+### 库提供的功能
 
 IJG JPEG库提供C代码来读取和写入JPEG压缩的图像文件。
 The surrounding application program receives or supplies image data a
@@ -84,8 +81,7 @@ scanline at a time, using a straightforward uncompressed image format.
 （例如，免费的LIBTIFF库使用此库来支持TIFF中的JPEG压缩。）
 
 
-典型的用法概要
-------------------------
+### 典型的用法概要
 
 JPEG压缩操作的粗略概述是：
 
@@ -140,11 +136,9 @@ JPEG库没有静态变量：所有状态都在压缩或解压缩对象中。 因
 如果使用合适的源/目标管理器，则压缩和解压缩都可以以增量内存-内存方式进行。 有关更多详细信息，请参见“ I / O挂起”部分。
 
 
-库的基本使用
-==========
+## 库的基本使用
 
-数据格式
--------
+### 数据格式
 
 在深入研究程序细节之前，了解JPEG库期望或返回的图像数据格式将很有帮助。
 
@@ -169,24 +163,8 @@ if you process just one scanline at a time, you must make a one-element
 pointer array to conform to this structure.  Pointers to JSAMPLE rows are of
 type JSAMPROW, and the pointer to the pointer array is of type JSAMPARRAY.
 通过建立指向扫描线起点的指针列表来形成2D像素阵列。 因此扫描线不必在内存中物理相邻。 即使一次只处理一条扫描线，也必须制作一个单元素指针数组以符合此结构。 指向JSAMPLE行的指针的类型为JSAMPROW，指向指针数组的指针的类型为JSAMPARRAY。
-    该库每次调用接受或提供一个或多个完整扫描线。
-   不能一次处理一行的一部分。 扫描线始终从上到下进行处理。 如果将所有图像都存储在内存中，则可以一次调用处理整个图像，但是通常一次处理一条扫描线最简单。
-    为了获得最佳结果，源数据值应具有BITS_IN_JSAMPLE指定的精度（通常为8位）。 例如，如果选择压缩仅6位/通道的数据，则应在将每个值传递给压缩器之前左对齐每个字节。 如果需要压缩每通道8位以上的数据，请使用BITS_IN_JSAMPLE = 9到12进行编译。
-   （请参阅稍后的“库编译时选项”。）
-
-The library accepts or supplies one or more complete scanlines per call.
-It is not possible to process part of a row at a time.  Scanlines are always
-processed top-to-bottom.  You can process an entire image in one call if you
-have it all in memory, but usually it's simplest to process one scanline at
-a time.
-
-For best results, source data values should have the precision specified by
-BITS_IN_JSAMPLE (normally 8 bits).  For instance, if you choose to compress
-data that's only 6 bits/channel, you should left-justify each value in a
-byte before passing it to the compressor.  If you need to compress data
-that has more than 8 bits/channel, compile with BITS_IN_JSAMPLE = 9 to 12.
-(See "Library compile-time options", later.)
-
+该库每次调用接受或提供一个或多个完整scanlines。单次无法处理一行的部分数据。scanlines 按照从上到下的顺序处理。 如果将一幅图像所有数据都存储在内存中，则可以在一次调用处理完，但是通常一次处理一条 scanline 最简单。
+为了获得最佳结果，源数据值应具有BITS_IN_JSAMPLE指定的精度（通常为8位）。 例如，如果选择压缩仅6位/通道的数据，则应在将每个值传递给压缩器之前左对齐每个字节。 如果需要压缩每通道8位以上的数据，请使用BITS_IN_JSAMPLE = 9到12进行编译。（请参阅稍后的“库编译时选项”。）
 
 The data format returned by the decompressor is the same in all details,
 except that colormapped output is supported.  (Again, a JPEG file is never
@@ -202,162 +180,77 @@ JSAMPLEs, the maximum number of colors is limited by the size of JSAMPLE
 除支持色图输出外，解压缩器返回的数据格式在所有细节上都是相同的。  （同样，永远不会对JPEG文件进行颜色映射。但是，您可以要求解压缩器进行即时颜色量化以提供颜色映射输出。）如果您请求颜色映射输出，则返回的数据数组每个像素包含一个JSAMPLE； 它的值是彩色图的索引。 颜色图表示为二维JSAMPARRAY，其中每一行都保存一个颜色分量的值，即colormap [i] [j]是第i个颜色分量的像素值（图索引）  j。 请注意，由于颜色图索引存储在JSAMPLE中，因此最大颜色数受JSAMPLE的大小限制（即，对于8位JPEG库，最多为256种颜色）。
 
 
-压缩细节
--------
+### 压缩细节
 
-Here we revisit the JPEG compression outline given in the overview.
-在这里，我们重新访问概述中给出的JPEG压缩轮廓。
-    1.分配并初始化JPEG压缩对象。
-    JPEG压缩对象是“结构jpeg_compress_struct”。  （它还具有通过malloc（）分配的一堆辅助结构，但是应用程序不能直接控制它们。）如果一个例程要执行该例程，则该结构可以只是调用例程中的局部变量。 整个JPEG压缩序列。 否则，它可以是静态的，也可以从malloc（）分配。
-    您还将需要一个表示JPEG错误处理程序的结构。 库关心的部分是“ struct jpeg_error_mgr”。 如果要提供自己的错误处理程序，通常会希望将jpeg_error_mgr结构嵌入更大的结构中。 稍后将在“错误处理”中进行讨论。 现在，我们假设您只是使用默认的错误处理程序。 默认错误处理程序将在stderr上打印JPEG错误/警告消息，如果发生致命错误，它将调用exit（）。
+本章节详细描述在概述中给出的JPEG压缩大纲。
 
-1. Allocate and initialize a JPEG compression object.
+#### 1.分配并初始化JPEG压缩对象。
 
-A JPEG compression object is a "struct jpeg_compress_struct".  (It also has
-a bunch of subsidiary structures which are allocated via malloc(), but the
-application doesn't control those directly.)  This struct can be just a local
-variable in the calling routine, if a single routine is going to execute the
-whole JPEG compression sequence.  Otherwise it can be static or allocated
-from malloc().
+​JPEG压缩对象是 `struct jpeg_compress_struct`。（它还具有一堆通过malloc()分配的私有结构体，但是应用程序不能直接控制它们。）如果调用程序想压缩整个JPEG序列，则它可以作为局部变量，否则可以作为静态或从malloc()分配。
+`struct jpeg_error_mgr` 用作异常处理。如果想用用自己定义的error handler，则应该将它内嵌到自己的 error handler内。详细见后续的 “异常处理” 的章节。当前假设仅仅使用默认的 error handler。默认的 error handler会打印 JPEG error/warning 信息到 stderr，如果发生致命错误时会调用 exit()。必须要初始化 error handler，jpeg_compress_struct 内的 ”err" 成员指向它，然后调用 `jpeg_create_compress()` 来初始化剩余的 JPEG object。如下的使用默认的 error handler的典型代码：
+```c
+    struct jpeg_compress_struct cinfo;
+    struct jpeg_error_mgr jerr;
+    ...
+    cinfo.err = jpeg_std_err(&jerr);
+    jpeg_create_compress(&cinfo);
+```
+jpeg_create_compress分配少量内存，因此如果内存不足，它可能会失败。在这种情况下，它将通过错误处理程序退出；这就是必须首先初始化错误处理程序的原因。
 
-You will also need a structure representing a JPEG error handler.  The part
-of this that the library cares about is a "struct jpeg_error_mgr".  If you
-are providing your own error handler, you'll typically want to embed the
-jpeg_error_mgr struct in a larger structure; this is discussed later under
-"Error handling".  For now we'll assume you are just using the default error
-handler.  The default error handler will print JPEG error/warning messages
-on stderr, and it will call exit() if a fatal error occurs.
+#### 2. 指定压缩文件的输出目的地 (eg, 一个文件)
 
-You must initialize the error handler structure, store a pointer to it into
-the JPEG object's "err" field, and then call jpeg_create_compress() to
-initialize the rest of the JPEG object.
-您必须初始化错误处理程序结构，将指向它的指针存储在JPEG对象的“ err”字段中，然后调用jpeg_create_compress（）来初始化其余的JPEG对象。
-    如果您使用的是默认错误处理程序，则此步骤的典型代码为struct jpeg_compress_struct cinfo。  struct jpeg_error_mgr jerr;  ...
-   cinfo.err = jpeg_std_error（＆jerr）;  jpeg_create_compress（＆cinfo）;  jpeg_create_compress分配少量内存，因此如果内存不足，它可能会失败。 在这种情况下，它将通过错误处理程序退出； 这就是必须首先初始化错误处理程序的原因。
+如前所述，JPEG库将压缩数据传输到 “data destination” 模块。本库包含一个将压缩数据写入标准I/O流的模块。后面将会讨论如何自定义你自己的输出目标如果你想做一些其他的操作。
+如果你使用标准 destination 模块，就必须先打开标准I/O流。典型代码如下：
+```c
+    FILE * outfile;
+    ...
+    if ((outfile = fopen(filename, "wb")) == NULL) {
+       fprintf(stderr, "can't open %s\n", filename);
+        exit(1);
+    }
+    jpeg_stdio_dest(&cinfo, outfile);
+```
+jpeg_stdio_dest(&cinfo, outfile) 唤醒标准 destination 模块。
+> 警告：二进制压缩数据必须原样传输到输出文件。在非Unix系统上，stdio库可能会做换行操作破坏数据。为了避免这个问题，你必须使用 “b” 选项打开文件，或使用 `setmode()` 或其他方法来将stdio 流以 binary 模式打开。详见 *cjpeg.c* 和 *djpeg.c* 中的已证明在许多系统上能正常工作的代码。
+你可以在设置其他参数（步骤3）之后选择数据 destination。但不能在调用 `jpeg_start_compress()` 和 `jpeg_finish_compress` 之间。
 
-Typical code for this step, if you are using the default error handler, is
+#### 3. 设置压缩参数，包括图像大小和颜色空间
+24位RGB源图像的典型代码是cinfo.image_width = Width;  / *图片宽度和高度，以像素为单位* / cinfo.image_height =高度；  cinfo.input_components = 3;  / *每个像素的颜色分量数* / cinfo.in_color_space = JCS_RGB;  / *输入图像的色彩空间* / jpeg_set_defaults（＆cinfo）;  / *在此处进行可选参数设置* /
 
-	struct jpeg_compress_struct cinfo;
-	struct jpeg_error_mgr jerr;
-	...
-	cinfo.err = jpeg_std_error(&jerr);
-	jpeg_create_compress(&cinfo);
+您必须通过在JPEG对象（cinfo结构体）中设置以下字段来提供有关源图像的信息：
+- image_width         //Width of image, in pixels
+- image_height        //Height of image, in pixels
+- input_components    //Number of color channels (samples per pixel)
+- in_color_space      //Color space of source image
 
-jpeg_create_compress allocates a small amount of memory, so it could fail
-if you are out of memory.  In that case it will exit via the error handler;
-that's why the error handler must be initialized first.
+图像的尺寸显而易见。JPEG支持 1x1到 64Kx64K分辨率。输入的颜色空间通常是RGB或灰度，因此 `input_components` 为 3 或 1。（详见之后的 “特殊颜色空间” 这一章节。） `in_color_space` 字段必须用 `J_COLOR_SPACE` 枚举型常量的值之一赋值，通常是 *JSC_RGB* 或 `JSC_GRAYSCALE`。
+JPEG 有大量的压缩参数来决定图像如何被编码。大部分应用程序无需也不想了解所有参数。所以可以通过调用 `jpeg_set_defaults()` 将所有参数设置成合理的默认值，在此之后可以更改某些你想修改的参数。“压缩参数选择” 这一章节介绍所有参数。在调用 `jpeg_set_defaults()` 之前，必须正确设置 `in_color_space`，因为默认值取决于源图像的色彩空间。 但是，在调用`jpeg_start_compress()` 之前，其他三个源图像参数不需要有效。 如果碰巧方便的话，多次调用 `jpeg_set_defaults()` 没有什么害处。
 
+24-bit RGB 源图像的参数设置的典型代码：
+```c
+    cinfo.image_width = Width;        /* image width and height, in pixels */
+    cinfo.image_height = Height;
+    cinfo.input_components = 3;       /* # of color components per pixel */
+    cinfo.in_color_space = JCS_RGB;   /* colorspace of input image */
+    
+    jpeg_set_defaults(&cinfo);
+    /* Make optional parameter settings here */
+```
 
-2. Specify the destination for the compressed data (eg, a file).
-2.指定压缩数据（例如文件）的目的地。
-    如前所述，JPEG库将压缩的数据传递到“数据目标”模块。 该库包括一个数据目标模块，该模块知道如何写入stdio流。 如果您要执行其他操作，则可以使用自己的目标模块，如稍后所述。
-    如果使用标准目标模块，则必须事先打开目标stdio流。 此步骤的典型代码如下：FILE * outfile;  ...
-   如果（（outfile = fopen（filename，“ wb”））== NULL）{fprintf（stderr，“无法打开％s \ n”，文件名）; 出口（1）;  } jpeg_stdio_dest（＆cinfo，outfile）; 最后一行调用标准目标模块。
-    警告：至关重要的是，二进制压缩数据必须原样传送到输出文件。 在非Unix系统上，stdio库可能执行换行转换或破坏二进制数据。 若要抑制此行为，您可能需要使用“ b”选项打开（如上所示），或使用setmode（）或另一个例程将stdio流置于二进制模式。 有关已发现可在许多系统上工作的代码，请参见cjpeg.c和djpeg.c。
-    如果更方便，则可以在设置其他参数后选择数据目标（第3步）。 在调用jpeg_start_compress（）和jpeg_finish_compress（）之间，不得更改目标。
+#### 4. jpeg_start_compress(...);
+建立数据目标并设置所有必需的源图像信息和其他参数后，请调用 `jpeg_start_compress()` 开始一个压缩周期。 这将初始化内部状态，分配工作存储，并发出JPEG数据流头的前几个字节。
+典型代码：
+```c
+    jpeg_start_compress(&cinfo, TRUE);
+```
+“TRUE”参数确保将写入完整的JPEG交互数据流。大多数情况下这么做是恰当的。如果你想要使用缩略的数据流，请阅读后面的“缩略数据流”这一章节。
+调用 `jpeg_start_compress()` 后，在完成压缩周期之前，不得更改任何JPEG参数或JPEG对象的其他字段。
 
-As previously mentioned, the JPEG library delivers compressed data to a
-"data destination" module.  The library includes one data destination
-module which knows how to write to a stdio stream.  You can use your own
-destination module if you want to do something else, as discussed later.
-
-If you use the standard destination module, you must open the target stdio
-stream beforehand.  Typical code for this step looks like:
-
-	FILE * outfile;
-	...
-	if ((outfile = fopen(filename, "wb")) == NULL) {
-	    fprintf(stderr, "can't open %s\n", filename);
-	    exit(1);
-	}
-	jpeg_stdio_dest(&cinfo, outfile);
-
-where the last line invokes the standard destination module.
-
-WARNING: it is critical that the binary compressed data be delivered to the
-output file unchanged.  On non-Unix systems the stdio library may perform
-newline translation or otherwise corrupt binary data.  To suppress this
-behavior, you may need to use a "b" option to fopen (as shown above), or use
-setmode() or another routine to put the stdio stream in binary mode.  See
-cjpeg.c and djpeg.c for code that has been found to work on many systems.
-
-You can select the data destination after setting other parameters (step 3),
-if that's more convenient.  You may not change the destination between
-calling jpeg_start_compress() and jpeg_finish_compress().
-
-
-3. Set parameters for compression, including image size & colorspace.
-3.设置压缩参数，包括图像大小和色彩空间。
-    您必须通过在JPEG对象（cinfo结构）中设置以下字段来提供有关源图像的信息：image_width图像的宽度，以像素为单位image_height图像的高度，以像素为单位input_components颜色通道数（每像素样本）in_color_space 源图像图像尺寸希望是显而易见的。  JPEG支持任一方向上1到64K像素的图像尺寸。 输入颜色空间通常是RGB或灰度，并且input_components因此是3或1。  （有关更多信息，请参见“特殊颜色空间”。），必须为in_color_space字段分配J_COLOR_SPACE枚举常量之一，通常为JCS_RGB或JCS_GRAYSCALE。
-    JPEG具有大量决定图像编码方式的压缩参数。 大多数应用程序不需要或不想了解所有这些参数。 您可以通过调用jpeg_set_defaults（）;将所有参数设置为合理的默认值。 然后，如果您要更改某些特定值，则可以在此之后进行。  “压缩参数选择”部分介绍了所有参数。
-    在调用jpeg_set_defaults（）之前，必须正确设置in_color_space，因为默认值取决于源图像的色彩空间。 但是，在调用jpeg_start_compress（）之前，其他三个源图像参数不需要有效。 如果碰巧方便的话，多次调用jpeg_set_defaults（）没有什么害处。
-    24位RGB源图像的典型代码是cinfo.image_width = Width;  / *图片宽度和高度，以像素为单位* / cinfo.image_height =高度；  cinfo.input_components = 3;  / *每个像素的颜色分量数* / cinfo.in_color_space = JCS_RGB;  / *输入图像的色彩空间* / jpeg_set_defaults（＆cinfo）;  / *在此处进行可选参数设置* /
-
-You must supply information about the source image by setting the following
-fields in the JPEG object (cinfo structure):
-
-	image_width		Width of image, in pixels
-	image_height		Height of image, in pixels
-	input_components	Number of color channels (samples per pixel)
-	in_color_space		Color space of source image
-
-The image dimensions are, hopefully, obvious.  JPEG supports image dimensions
-of 1 to 64K pixels in either direction.  The input color space is typically
-RGB or grayscale, and input_components is 3 or 1 accordingly.  (See "Special
-color spaces", later, for more info.)  The in_color_space field must be
-assigned one of the J_COLOR_SPACE enum constants, typically JCS_RGB or
-JCS_GRAYSCALE.
-
-JPEG has a large number of compression parameters that determine how the
-image is encoded.  Most applications don't need or want to know about all
-these parameters.  You can set all the parameters to reasonable defaults by
-calling jpeg_set_defaults(); then, if there are particular values you want
-to change, you can do so after that.  The "Compression parameter selection"
-section tells about all the parameters.
-
-You must set in_color_space correctly before calling jpeg_set_defaults(),
-because the defaults depend on the source image colorspace.  However the
-other three source image parameters need not be valid until you call
-jpeg_start_compress().  There's no harm in calling jpeg_set_defaults() more
-than once, if that happens to be convenient.
-
-Typical code for a 24-bit RGB source image is
-
-	cinfo.image_width = Width; 	/* image width and height, in pixels */
-	cinfo.image_height = Height;
-	cinfo.input_components = 3;	/* # of color components per pixel */
-	cinfo.in_color_space = JCS_RGB; /* colorspace of input image */
-	
-	jpeg_set_defaults(&cinfo);
-	/* Make optional parameter settings here */
-
-
-4. jpeg_start_compress(...);
-4. jpeg_start_compress（...）; 建立数据目标并设置所有必需的源图像信息和其他参数后，请调用jpeg_start_compress（）开始压缩循环。 这将初始化内部状态，分配工作存储，并发出JPEG数据流标头的前几个字节。
-    典型代码：jpeg_start_compress（＆cinfo，TRUE）;  “ TRUE”参数确保将写入完整的JPEG互换数据流。 在大多数情况下，这是适当的。 如果您认为您想使用缩写数据流，请阅读下面有关缩写数据流的部分。
-    调用jpeg_start_compress（）后，在完成压缩周期之前，不得更改任何JPEG参数或JPEG对象的其他字段。
-
-After you have established the data destination and set all the necessary
-source image info and other parameters, call jpeg_start_compress() to begin
-a compression cycle.  This will initialize internal state, allocate working
-storage, and emit the first few bytes of the JPEG datastream header.
-
-Typical code:
-
-	jpeg_start_compress(&cinfo, TRUE);
-
-The "TRUE" parameter ensures that a complete JPEG interchange datastream
-will be written.  This is appropriate in most cases.  If you think you might
-want to use an abbreviated datastream, read the section on abbreviated
-datastreams, below.
-
-Once you have called jpeg_start_compress(), you may not alter any JPEG
-parameters or other fields of the JPEG object until you have completed
-the compression cycle.
-
-
-5. while (scan lines remain to be written)
-	jpeg_write_scanlines(...);
+#### 5. while (scan lines remain to be written)
+```c
+    while (scane lines remain to be written)
+        jpeg_write_scanlines(...);
+```
 
 Now write all the required image data by calling jpeg_write_scanlines()
 one or more times.  You can pass one or more scanlines in each call, up
@@ -415,7 +308,7 @@ next_scanline.
    无论如何，返回值都与next_scanline的值更改相同。
 
 
-6. jpeg_finish_compress(...);
+#### 6. jpeg_finish_compress(...);
 
 After all the image data has been written, call jpeg_finish_compress() to
 complete the compression cycle.  This step is ESSENTIAL to ensure that the
@@ -458,7 +351,7 @@ you'll need to repeat all of step 3.
    如果您不更改任何JPEG参数，则将使用与以前相同的参数写入新数据流。 请注意，您可以在周期之间自由更改输入图像的尺寸，但是如果更改输入色彩空间，则应调用jpeg_set_defaults（）来调整新的色彩空间； 然后您需要重复所有步骤3。
 
 
-7. Release the JPEG compression object.
+#### 7. Release the JPEG compression object.
 
 When you are done with a JPEG compression object, destroy it by calling
 jpeg_destroy_compress().  This will free all subsidiary memory (regardless of
@@ -481,7 +374,7 @@ Typical code:
     典型代码：jpeg_destroy_compress（＆cinfo）;
 
 
-8. Aborting.
+#### 8. Aborting.
 
 If you decide to abort a compression cycle before finishing, you can clean up
 in either of two ways:
@@ -513,8 +406,7 @@ whack.  Either of these two routines will return the object to a known state.
    （有关更多信息，请参见下面的“压缩数据处理”。）jpeg_destroy（）和jpeg_abort（）是对通过调用error_exit报告了错误的JPEG对象进行的唯一安全调用（有关更多信息，请参见“错误处理”。 信息）。 这样的对象的内部状态很可能已不合时宜。 这两个例程中的任何一个都会使对象返回到已知状态。
 
 
-解压细节
--------
+### 解压细节
 
 Here we revisit the JPEG decompression outline given in the overview.
 
@@ -782,8 +674,7 @@ The previous discussion of aborting compression cycles applies here too.
    先前中止压缩循环的讨论也适用于此。
 
 
-使用机制：包括文件、链接等
-----------------------
+### 使用机制：包括文件、链接等
 
 Applications using the JPEG library should include the header file jpeglib.h
 to obtain declarations of data types and routines.  Before including
@@ -838,11 +729,9 @@ your own devising).  More info about the minimum system library requirements
 may be found in jinclude.h.
 
 
-ADVANCED FEATURES
-=================
+## ADVANCED FEATURES
 
-Compression parameter selection
--------------------------------
+### Compression parameter selection
 
 This section describes all the optional parameters you can set for JPEG
 compression, as well as the "helper" routines provided to assist in this
@@ -860,115 +749,114 @@ cinfo fields directly.
 The helper routines are:
 
 jpeg_set_defaults (j_compress_ptr cinfo)
-	This routine sets all JPEG parameters to reasonable defaults, using
-	only the input image's color space (field in_color_space, which must
-	already be set in cinfo).  Many applications will only need to use
-	this routine and perhaps jpeg_set_quality().
+    This routine sets all JPEG parameters to reasonable defaults, using
+    only the input image's color space (field in_color_space, which must
+    already be set in cinfo).  Many applications will only need to use
+    this routine and perhaps jpeg_set_quality().
 
 jpeg_set_colorspace (j_compress_ptr cinfo, J_COLOR_SPACE colorspace)
-	Sets the JPEG file's colorspace (field jpeg_color_space) as specified,
-	and sets other color-space-dependent parameters appropriately.  See
-	"Special color spaces", below, before using this.  A large number of
-	parameters, including all per-component parameters, are set by this
-	routine; if you want to twiddle individual parameters you should call
-	jpeg_set_colorspace() before rather than after.
+    Sets the JPEG file's colorspace (field jpeg_color_space) as specified,
+    and sets other color-space-dependent parameters appropriately.  See
+    "Special color spaces", below, before using this.  A large number of
+    parameters, including all per-component parameters, are set by this
+    routine; if you want to twiddle individual parameters you should call
+    jpeg_set_colorspace() before rather than after.
 
 jpeg_default_colorspace (j_compress_ptr cinfo)
-	Selects an appropriate JPEG colorspace based on cinfo->in_color_space,
-	and calls jpeg_set_colorspace().  This is actually a subroutine of
-	jpeg_set_defaults().  It's broken out in case you want to change
-	just the colorspace-dependent JPEG parameters.
+    Selects an appropriate JPEG colorspace based on cinfo->in_color_space,
+    and calls jpeg_set_colorspace().  This is actually a subroutine of
+    jpeg_set_defaults().  It's broken out in case you want to change
+    just the colorspace-dependent JPEG parameters.
 
 jpeg_set_quality (j_compress_ptr cinfo, int quality, boolean force_baseline)
-	Constructs JPEG quantization tables appropriate for the indicated
-	quality setting.  The quality value is expressed on the 0..100 scale
-	recommended by IJG (cjpeg's "-quality" switch uses this routine).
-	Note that the exact mapping from quality values to tables may change
-	in future IJG releases as more is learned about DCT quantization.
-	If the force_baseline parameter is TRUE, then the quantization table
-	entries are constrained to the range 1..255 for full JPEG baseline
-	compatibility.  In the current implementation, this only makes a
-	difference for quality settings below 25, and it effectively prevents
-	very small/low quality files from being generated.  The IJG decoder
-	is capable of reading the non-baseline files generated at low quality
-	settings when force_baseline is FALSE, but other decoders may not be.
+    Constructs JPEG quantization tables appropriate for the indicated
+    quality setting.  The quality value is expressed on the 0..100 scale
+    recommended by IJG (cjpeg's "-quality" switch uses this routine).
+    Note that the exact mapping from quality values to tables may change
+    in future IJG releases as more is learned about DCT quantization.
+    If the force_baseline parameter is TRUE, then the quantization table
+    entries are constrained to the range 1..255 for full JPEG baseline
+    compatibility.  In the current implementation, this only makes a
+    difference for quality settings below 25, and it effectively prevents
+    very small/low quality files from being generated.  The IJG decoder
+    is capable of reading the non-baseline files generated at low quality
+    settings when force_baseline is FALSE, but other decoders may not be.
 
-jpeg_set_linear_quality (j_compress_ptr cinfo, int scale_factor,
-			 boolean force_baseline)
-	Same as jpeg_set_quality() except that the generated tables are the
-	sample tables given in the JPEC spec section K.1, multiplied by the
-	specified scale factor (which is expressed as a percentage; thus
-	scale_factor = 100 reproduces the spec's tables).  Note that larger
-	scale factors give lower quality.  This entry point is useful for
-	conforming to the Adobe PostScript DCT conventions, but we do not
-	recommend linear scaling as a user-visible quality scale otherwise.
-	force_baseline again constrains the computed table entries to 1..255.
+jpeg_set_linear_quality (j_compress_ptr cinfo, int scale_factor, boolean force_baseline)
+    Same as jpeg_set_quality() except that the generated tables are the
+    sample tables given in the JPEC spec section K.1, multiplied by the
+    specified scale factor (which is expressed as a percentage; thus
+    scale_factor = 100 reproduces the spec's tables).  Note that larger
+    scale factors give lower quality.  This entry point is useful for
+    conforming to the Adobe PostScript DCT conventions, but we do not
+    recommend linear scaling as a user-visible quality scale otherwise.
+    force_baseline again constrains the computed table entries to 1..255.
 
 int jpeg_quality_scaling (int quality)
-	Converts a value on the IJG-recommended quality scale to a linear
-	scaling percentage.  Note that this routine may change or go away
-	in future releases --- IJG may choose to adopt a scaling method that
-	can't be expressed as a simple scalar multiplier, in which case the
-	premise of this routine collapses.  Caveat user.
+    Converts a value on the IJG-recommended quality scale to a linear
+    scaling percentage.  Note that this routine may change or go away
+    in future releases --- IJG may choose to adopt a scaling method that
+    can't be expressed as a simple scalar multiplier, in which case the
+    premise of this routine collapses.  Caveat user.
 
 jpeg_default_qtables (j_compress_ptr cinfo, boolean force_baseline)
-	Set default quantization tables with linear q_scale_factor[] values
-	(see below).
+    Set default quantization tables with linear q_scale_factor[] values
+    (see below).
 
 jpeg_add_quant_table (j_compress_ptr cinfo, int which_tbl,
-		      const unsigned int *basic_table,
-		      int scale_factor, boolean force_baseline)
-	Allows an arbitrary quantization table to be created.  which_tbl
-	indicates which table slot to fill.  basic_table points to an array
-	of 64 unsigned ints given in normal array order.  These values are
-	multiplied by scale_factor/100 and then clamped to the range 1..65535
-	(or to 1..255 if force_baseline is TRUE).
-	CAUTION: prior to library version 6a, jpeg_add_quant_table expected
-	the basic table to be given in JPEG zigzag order.  If you need to
-	write code that works with either older or newer versions of this
-	routine, you must check the library version number.  Something like
-	"#if JPEG_LIB_VERSION >= 61" is the right test.
+              const unsigned int *basic_table,
+              int scale_factor, boolean force_baseline)
+    Allows an arbitrary quantization table to be created.  which_tbl
+    indicates which table slot to fill.  basic_table points to an array
+    of 64 unsigned ints given in normal array order.  These values are
+    multiplied by scale_factor/100 and then clamped to the range 1..65535
+    (or to 1..255 if force_baseline is TRUE).
+    CAUTION: prior to library version 6a, jpeg_add_quant_table expected
+    the basic table to be given in JPEG zigzag order.  If you need to
+    write code that works with either older or newer versions of this
+    routine, you must check the library version number.  Something like
+    "#if JPEG_LIB_VERSION >= 61" is the right test.
 
 jpeg_simple_progression (j_compress_ptr cinfo)
-	Generates a default scan script for writing a progressive-JPEG file.
-	This is the recommended method of creating a progressive file,
-	unless you want to make a custom scan sequence.  You must ensure that
-	the JPEG color space is set correctly before calling this routine.
+    Generates a default scan script for writing a progressive-JPEG file.
+    This is the recommended method of creating a progressive file,
+    unless you want to make a custom scan sequence.  You must ensure that
+    the JPEG color space is set correctly before calling this routine.
 
 
 Compression parameters (cinfo fields) include:
 
 boolean arith_code
-	If TRUE, use arithmetic coding.
-	If FALSE, use Huffman coding.
+    If TRUE, use arithmetic coding.
+    If FALSE, use Huffman coding.
 
 int block_size
-	Set DCT block size.  All N from 1 to 16 are possible.
-	Default is 8 (baseline format).
-	Larger values produce higher compression,
-	smaller values produce higher quality.
-	An exact DCT stage is possible with 1 or 2.
-	With the default quality of 75 and default Luminance qtable
-	the DCT+Quantization stage is lossless for value 1.
-	Note that values other than 8 require a SmartScale capable decoder,
-	introduced with IJG JPEG 8.  Setting the block_size parameter for
-	compression works with version 8c and later.
+    Set DCT block size.  All N from 1 to 16 are possible.
+    Default is 8 (baseline format).
+    Larger values produce higher compression,
+    smaller values produce higher quality.
+    An exact DCT stage is possible with 1 or 2.
+    With the default quality of 75 and default Luminance qtable
+    the DCT+Quantization stage is lossless for value 1.
+    Note that values other than 8 require a SmartScale capable decoder,
+    introduced with IJG JPEG 8.  Setting the block_size parameter for
+    compression works with version 8c and later.
 
 J_DCT_METHOD dct_method
-	Selects the algorithm used for the DCT step.  Choices are:
-		JDCT_ISLOW: slow but accurate integer algorithm
-		JDCT_IFAST: faster, less accurate integer method
-		JDCT_FLOAT: floating-point method
-		JDCT_DEFAULT: default method (normally JDCT_ISLOW)
-		JDCT_FASTEST: fastest method (normally JDCT_IFAST)
-	The FLOAT method is very slightly more accurate than the ISLOW method,
-	but may give different results on different machines due to varying
-	roundoff behavior.  The integer methods should give the same results
-	on all machines.  On machines with sufficiently fast FP hardware, the
-	floating-point method may also be the fastest.  The IFAST method is
-	considerably less accurate than the other two; its use is not
-	recommended if high quality is a concern.  JDCT_DEFAULT and
-	JDCT_FASTEST are macros configurable by each installation.
+    Selects the algorithm used for the DCT step.  Choices are:
+        JDCT_ISLOW: slow but accurate integer algorithm
+        JDCT_IFAST: faster, less accurate integer method
+        JDCT_FLOAT: floating-point method
+        JDCT_DEFAULT: default method (normally JDCT_ISLOW)
+        JDCT_FASTEST: fastest method (normally JDCT_IFAST)
+    The FLOAT method is very slightly more accurate than the ISLOW method,
+    but may give different results on different machines due to varying
+    roundoff behavior.  The integer methods should give the same results
+    on all machines.  On machines with sufficiently fast FP hardware, the
+    floating-point method may also be the fastest.  The IFAST method is
+    considerably less accurate than the other two; its use is not
+    recommended if high quality is a concern.  JDCT_DEFAULT and
+    JDCT_FASTEST are macros configurable by each installation.
 
 unsigned int scale_num, scale_denom
 	Scale the image by the fraction scale_num/scale_denom.  Default is
@@ -1160,8 +1048,7 @@ int component_index
 	you don't have to.)
 
 
-Decompression parameter selection
----------------------------------
+### Decompression parameter selection
 
 Decompression parameter selection is somewhat simpler than compression
 parameter selection, since all of the JPEG internal parameters are
@@ -1329,8 +1216,7 @@ go to the trouble of honoring rec_outbuf_height so as to avoid data copying.
 provide any material speed improvement over that height.)
 
 
-Special color spaces
---------------------
+### Special color spaces
 
 The JPEG standard itself is "color blind" and doesn't specify any particular
 color space.  It is customary to convert color data to a luminance/chrominance
@@ -1422,8 +1308,7 @@ the JPEG library must not invert the data itself, or else Ghostscript would
 read these EPS files incorrectly.
 
 
-Error handling
---------------
+### Error handling
 
 When the default error handler is used, any error detected inside the JPEG
 routines will cause a message to be printed on stderr, followed by exit().
@@ -1524,8 +1409,7 @@ standard printf() format codes.
 See jerror.h and jerror.c for further details.
 
 
-Compressed data handling (source and destination managers)
-----------------------------------------------------------
+### Compressed data handling (source and destination managers)
 
 The JPEG compression library sends its compressed data to a "destination
 manager" module.  The default destination manager just writes the data to a
@@ -1679,8 +1563,7 @@ For more information, consult the memory and stdio source and destination
 managers in jdatasrc.c and jdatadst.c.
 
 
-I/O suspension
---------------
+### I/O suspension
 
 Some applications need to use the JPEG library as an incremental memory-to-
 memory filter: when the compressed data buffer is filled or emptied, they want
@@ -1854,8 +1737,7 @@ space.  This approach requires a little more data copying but is far easier
 to get right.
 
 
-Progressive JPEG support
-------------------------
+### Progressive JPEG support
 
 Progressive JPEG rearranges the stored data into a series of scans of
 increasing quality.  In situations where a JPEG file is transmitted across a
@@ -1925,8 +1807,7 @@ To perform incremental display, an application must use the library's
 buffered-image mode.  This is described in the next section.
 
 
-Buffered-image mode
--------------------
+### Buffered-image mode
 
 In buffered-image mode, the library stores the partially decoded image in a
 coefficient buffer, from which it can be read out as many times as desired.
@@ -2289,8 +2170,7 @@ using buffered-image mode, but in that case it's basically a no-op after the
 initial markers have been read: it will just return JPEG_SUSPENDED.
 
 
-Abbreviated datastreams and multiple images
--------------------------------------------
+### Abbreviated datastreams and multiple images
 
 A JPEG compression or decompression object can be reused to process multiple
 images.  This saves a small amount of time per image by eliminating the
@@ -2466,8 +2346,7 @@ buffer after the last image.  You can make the later images be abbreviated
 ones by passing FALSE to jpeg_start_compress().
 
 
-Special markers
----------------
+### Special markers
 
 Some applications may need to insert or extract special data in the JPEG
 datastream.  The JPEG standard provides marker types "COM" (comment) and
@@ -2626,85 +2505,42 @@ A simple example of an external COM processor can be found in djpeg.c.
 Also, see jpegtran.c for an example of using jpeg_save_markers.
 
 
-Raw (downsampled) image data
-----------------------------
+### Raw (downsampled) image data
 
-Some applications need to supply already-downsampled image data to the JPEG
-compressor, or to receive raw downsampled data from the decompressor.  The
-library supports this requirement by allowing the application to write or
-read raw data, bypassing the normal preprocessing or postprocessing steps.
-The interface is different from the standard one and is somewhat harder to
-use.  If your interest is merely in bypassing color conversion, we recommend
-that you use the standard interface and simply set jpeg_color_space =
-in_color_space (or jpeg_color_space = out_color_space for decompression).
-The mechanism described in this section is necessary only to supply or
-receive downsampled image data, in which not all components have the same
-dimensions.
+一些应用程序需要向JPEG压缩器提供已经降采样的数据，或者从解压器获取降采样的raw数据。IJG-JPEG 通过允许应用程序读写 raw数据，而不用通过前处理或后处理步骤来支持这一需求。接口会与标准的有些不同且难用些。如果你只是想绕过颜色转换。我们建议你使用标准接口，且只需设置 `jpeg_color_space = in_color_space` （或 `jpeg_color_space = out_color_space` 如果是解码）。本节中描述的机制仅仅在读写降采样的数据（不是所有的 component 有一样的 尺寸）时才必须。
+要压缩 raw 数据，你必须提供要用于 JPEG 文件的数据颜色空间（请阅读之前的 “特殊颜色空间” 这一章节），和降采样到JPEG 参数中指定的降采样因子。把数据用该库内的 *JSAMPIMAGE* 数据结构表示。这是一个数组指针，指向二维数组 *JSAMPARRAY* 的。每个 *JSAMPARRAY* 包含一个颜色 component的数据。由于每个 component尺寸不同，所以这一步是必须的。如果图像的尺寸不是 MCU 大小的倍数，你必须正确填充数据（通常复制最后的列或行）。数据必须填充到 每个 component的 DCT块的倍数，意味着：每个降采样行的必须是 *DCT_h_scaled_size* 有效采样的倍数，每个 component必须包含 *DCT_v_scaled_size* 倍数的采样行。(如果转换的是数字电视的图像，由于标准图像通常都是 DCT 块大小的倍数，所以不需要做填充。)
 
+压缩raw数据的过程基本和普通的压缩流程一致，除了必须调用 `jpeg_write_raw_data()` 而不是 `jpeg_write_scanlies()`。在调用 `jpeg_start_compress()` 之前，必须做以下的步骤：
+    - 设置 cinfo->raw_data_in = TRUE。（`jpeg_set_defaults()` 将之设置成 FALSE）。 这告诉库你将提供 raw数据。
+    - 确保 `jpeg_color_space` 值正确 -- 最好显式调用`jpeg_set_color_space()`。注意因为 `in_color_space`会被忽略因为绕过了颜色转换，只是 `jpeg_set_defaults()` 会用它设置默认的 jpeg_color_space。
+    - 确保采样因子 `cinfo->comp_info[i]` 和 `cinfo->comp_info[i].v_samp_factor` 的值正确。由于这些值指示了 raw数据的尺寸，最好显式设置他们而不是假定库的默认值是你想要的。
 
-To compress raw data, you must supply the data in the colorspace to be used
-in the JPEG file (please read the earlier section on Special color spaces)
-and downsampled to the sampling factors specified in the JPEG parameters.
-You must supply the data in the format used internally by the JPEG library,
-namely a JSAMPIMAGE array.  This is an array of pointers to two-dimensional
-arrays, each of type JSAMPARRAY.  Each 2-D array holds the values for one
-color component.  This structure is necessary since the components are of
-different sizes.  If the image dimensions are not a multiple of the MCU size,
-you must also pad the data correctly (usually, this is done by replicating
-the last column and/or row).  The data must be padded to a multiple of a DCT
-block in each component: that is, each downsampled row must contain a
-multiple of DCT_h_scaled_size valid samples, and there must be a multiple of
-DCT_v_scaled_size sample rows for each component.  (For applications such as
-conversion of digital TV images, the standard image size is usually a
-multiple of the DCT block size, so that no padding need actually be done.)
+调用 `jpeg_write_raw_data()` 而不是 `jpeg_write_scanlines()` 来传递raw 数据给库。
+这两个函数功能类似除了 `jpeg_write_raw_data()` 处理 JSAMPIMAGE 数组而不是 JSAMPARRAY。
+scanline 计数传给和从 jpeg_write_raw_data 返回是按照有最大 v_samp_factor 的component计算的。
 
-The procedure for compression of raw data is basically the same as normal
-compression, except that you call jpeg_write_raw_data() in place of
-jpeg_write_scanlines().  Before calling jpeg_start_compress(), you must do
-the following:
-  * Set cinfo->raw_data_in to TRUE.  (It is set FALSE by jpeg_set_defaults().)
-    This notifies the library that you will be supplying raw data.
-  * Ensure jpeg_color_space is correct --- an explicit jpeg_set_colorspace()
-    call is a good idea.  Note that since color conversion is bypassed,
-    in_color_space is ignored, except that jpeg_set_defaults() uses it to
-    choose the default jpeg_color_space setting.
-  * Ensure the sampling factors, cinfo->comp_info[i].h_samp_factor and
-    cinfo->comp_info[i].v_samp_factor, are correct.  Since these indicate the
-    dimensions of the data you are supplying, it's wise to set them
-    explicitly, rather than assuming the library's defaults are what you want.
+`jpeg_write_raw_data()` 每次调用处理一个 MCU 行，即每个component的 `v_samp_factor * min_DCT_v_sacled_size` 个采样行。
+传递的 *num_lines* 值必须至少是 *max_v_samp_facotr * min_DCT_v_scaled_size*，且返回值也是这么大（或在之后版本的库可能是这个值的若干倍）。
+在处理图像的最底部时也是如此，不要忘记填充必要的数据。
 
-To pass raw data to the library, call jpeg_write_raw_data() in place of
-jpeg_write_scanlines().  The two routines work similarly except that
-jpeg_write_raw_data takes a JSAMPIMAGE data array rather than JSAMPARRAY.
-The scanlines count passed to and returned from jpeg_write_raw_data is
-measured in terms of the component with the largest v_samp_factor.
-
-jpeg_write_raw_data() processes one MCU row per call, which is to say
-v_samp_factor*min_DCT_v_scaled_size sample rows of each component.  The passed
-num_lines value must be at least max_v_samp_factor*min_DCT_v_scaled_size, and
-the return value will be exactly that amount (or possibly some multiple of
-that amount, in future library versions).  This is true even on the last call
-at the bottom of the image; don't forget to pad your data as necessary.
-
-The required dimensions of the supplied data can be computed for each
-component as
-	cinfo->comp_info[i].width_in_blocks *
-	cinfo->comp_info[i].DCT_h_scaled_size		samples per row
-	cinfo->comp_info[i].height_in_blocks *
-	cinfo->comp_info[i].DCT_v_scaled_size		rows in image
-after jpeg_start_compress() has initialized those fields.  If the valid data
-is smaller than this, it must be padded appropriately.  For some sampling
-factors and image sizes, additional dummy DCT blocks are inserted to make
-the image a multiple of the MCU dimensions.  The library creates such dummy
-blocks itself; it does not read them from your supplied data.  Therefore you
-need never pad by more than DCT_scaled_size samples.
-An example may help here.  Assume 2h2v downsampling of YCbCr data, that is
-	cinfo->comp_info[0].h_samp_factor = 2		for Y
-	cinfo->comp_info[0].v_samp_factor = 2
-	cinfo->comp_info[1].h_samp_factor = 1		for Cb
-	cinfo->comp_info[1].v_samp_factor = 1
-	cinfo->comp_info[2].h_samp_factor = 1		for Cr
-	cinfo->comp_info[2].v_samp_factor = 1
+提供的数据每个 component 的尺寸可以按如下计算：
+```
+    cinfo->comp_info[i].width_in_blocks *
+    cinfo->comp_info[i].DCT_h_scaled_size		//samples per row
+    cinfo->comp_info[i].height_in_blocks *
+    cinfo->comp_info[i].DCT_v_scaled_size		//rows in image
+```
+在 `jpeg_start_compress()` 初始化这些字段之后。如果有效数据小于此值，则必须对其进行适当填充。对于某些采样因子和图像大小，插入额外的 dummy DCT块，使图像成为MCU尺寸的倍数。库自己创建这些 dummy 块；它不会从您提供的数据中读取它们。
+因此，您永远不需要超过 *DCT_scaled_size* 的 samples。
+以下是个 2h2v 降采样的 YCbCr数据的例子：
+```
+    cinfo->comp_info[0].h_samp_factor = 2		for Y
+    cinfo->comp_info[0].v_samp_factor = 2
+    cinfo->comp_info[1].h_samp_factor = 1		for Cb
+    cinfo->comp_info[1].v_samp_factor = 1
+    cinfo->comp_info[2].h_samp_factor = 1		for Cr
+    cinfo->comp_info[2].v_samp_factor = 1
+```
 and suppose that the nominal image dimensions (cinfo->image_width and
 cinfo->image_height) are 101x101 pixels.  Then jpeg_start_compress() will
 compute downsampled_width = 101 and width_in_blocks = 13 for Y,
@@ -2751,8 +2587,7 @@ module suspends, jpeg_read_raw_data() will return 0.  You can also use
 buffered-image mode to read raw data in multiple passes.
 
 
-Really raw data: DCT coefficients
----------------------------------
+### Really raw data: DCT coefficients
 
 It is possible to read or write the contents of a JPEG file as raw DCT
 coefficients.  This facility is mainly intended for use in lossless
@@ -2840,8 +2675,7 @@ individual sent_table flags, between calling jpeg_write_coefficients() and
 jpeg_finish_compress().
 
 
-Progress monitoring
--------------------
+### Progress monitoring
 
 Some applications may need to regain control from the JPEG library every so
 often.  The typical use of this feature is to produce a percent-done bar or
@@ -2907,8 +2741,7 @@ size, estimating progress based on the fraction of the file that's been read
 will probably be more useful than using the library's value.
 
 
-Memory management
------------------
+### Memory management
 
 This section covers some key facts about the JPEG library's built-in memory
 manager.  For more info, please read structure.txt's section about the memory
@@ -2969,8 +2802,7 @@ since the C library is supposed to take care of deleting files made with
 tmpfile().
 
 
-Memory usage
-------------
+### Memory usage
 
 Working memory requirements while performing compression or decompression
 depend on image dimensions, image characteristics (such as colorspace and
@@ -3015,8 +2847,7 @@ If you need more detailed information about memory usage in a particular
 situation, you can enable the MEM_STATS code in jmemmgr.c.
 
 
-Library compile-time options
-----------------------------
+### Library compile-time options
 
 A number of compile-time options are available by modifying jmorecfg.h.
 
@@ -3075,8 +2906,7 @@ more K by modifying the TRACEMSn() macros in jerror.h to expand to nothing;
 you don't need trace capability anyway, right?
 
 
-Portability considerations
---------------------------
+### Portability considerations
 
 The JPEG library has been written to be extremely portable; the sample
 applications cjpeg and djpeg are slightly less so.  This section summarizes
@@ -3129,8 +2959,7 @@ More info about porting the code may be gleaned by reading jconfig.txt,
 jmorecfg.h, and jinclude.h.
 
 
-Notes for MS-DOS implementors
------------------------------
+### Notes for MS-DOS implementors
 
 The IJG code is designed to work efficiently in 80x86 "small" or "medium"
 memory models (i.e., data pointers are 16 bits unless explicitly declared
